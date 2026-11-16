@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 require_relative "oxigraph/version"
+require_relative "oxigraph/errors"
+require_relative "oxigraph/load_summary"
 
-module Oxigraph
-  class Error < StandardError; end
-end
-
-# The extension raises Oxigraph::Error, so it loads after the class exists.
+# The extension raises the error classes and builds a LoadSummary, so it loads
+# after they exist.
 require "oxigraph/oxigraph"
+
+require_relative "oxigraph/store"

@@ -1,6 +1,7 @@
 use magnus::{Error, Ruby};
 
 mod error;
+mod load;
 mod model;
 mod store;
 

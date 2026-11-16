@@ -8,6 +8,8 @@ use magnus::{
 };
 use oxigraph::model as rdf;
 
+use crate::error::argument_error;
+
 /// An IRI, exposed to Ruby as `Oxigraph::NamedNode`.
 #[derive(PartialEq, Eq, Hash)]
 #[magnus::wrap(class = "Oxigraph::NamedNode", free_immediately, size)]
@@ -290,10 +292,6 @@ fn term_from(ruby: &Ruby, value: Value) -> Result<rdf::Term, Error> {
             "Oxigraph::NamedNode, Oxigraph::BlankNode, or Oxigraph::Literal",
         ))
     }
-}
-
-fn argument_error(ruby: &Ruby, cause: impl Display) -> Error {
-    Error::new(ruby.exception_arg_error(), cause.to_string())
 }
 
 fn type_error(ruby: &Ruby, value: Value, expected: &str) -> Error {

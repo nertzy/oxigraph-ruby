@@ -26,7 +26,49 @@ store.size   # => 0
 store.empty? # => true
 ```
 
-Loading RDF and running SPARQL queries are next.
+## Loading RDF
+
+`Store#load` reads RDF from a string, from an `IO`, or from a file:
+
+```ruby
+store.load("<http://example.com/a> <http://example.com/p> <http://example.com/b> .", format: :n_triples)
+File.open("more.ttl") { |io| store.load(io, format: :turtle) }
+store.load(path: "vocabulary.ttl")
+store.load(path: "ontology.owl", format: :rdf_xml, base_iri: "http://example.com/")
+```
+
+- The formats are `:turtle`, `:rdf_xml`, `:n_triples`, `:n_quads`, `:trig`, `:n3`, and `:json_ld`.
+- `format:` is required with a string or an `IO`. With `path:` it defaults to the format the file extension names, and an extension that names none raises `ArgumentError`.
+- Data goes to the default graph unless the format carries graph names.
+- An `IO` is read in chunks, so a large file is never held in memory as one string. Any object with an `IO`-style `read(length)` works.
+- A load is all or nothing. Malformed input raises `Oxigraph::ParseError` and leaves the store unchanged.
+- Blank nodes are renamed on the way in, so a label from the input is not the identifier in the store.
+
+`load` returns an `Oxigraph::LoadSummary`:
+
+```ruby
+summary = store.load("@prefix ex: <http://example.com/> . ex:a ex:p ex:b .", format: :turtle)
+summary.prefixes # => {"ex" => "http://example.com/"}
+summary.base_iri # => nil
+```
+
+`prefixes` holds what the input declared, in no particular order (sort it if the order matters), and `base_iri` is the base IRI in effect at its end. Turtle, TriG, and N3 report their prefixes. RDF/XML reports none: its `xmlns` declarations do not appear.
+
+`Oxigraph::ParseError` has `line` and `column`, counted from one:
+
+```ruby
+begin
+  store.load("<http://example.com/a> oops", format: :turtle)
+rescue Oxigraph::ParseError => error
+  error.message # => "Parser error at line 1 between columns 24 and 28: oops is not a valid predicate"
+  error.line    # => 1
+  error.column  # => 24
+end
+```
+
+Both are `nil` when the parser reports no position, which is the case for RDF/XML.
+
+Running SPARQL queries is next.
 
 ## Terms
 
@@ -61,7 +103,8 @@ triple.to_s    # => "<http://example.com/a> <http://example.com/p> \"chat\"@fr"
 
 ## Scope and limitations
 
-- A store can be created and counted, and terms can be built, and nothing can be loaded into a store or queried yet.
+- RDF can be loaded into a store and counted, and nothing can be queried or read back yet.
+- JSON-LD that refers to a remote context fails to load, because the gem never fetches anything.
 - Stores live in memory only. The gem is built without RocksDB, so there is no on-disk store.
 - The gem is built without an HTTP client, so it never opens a network connection.
 - There are no precompiled gems, so every install compiles the Rust extension.
