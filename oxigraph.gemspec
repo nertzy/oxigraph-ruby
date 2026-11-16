@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.name = "oxigraph"
   spec.version = Oxigraph::VERSION
   spec.authors = ["Grant Hutchins"]
-  spec.email = ["git@nertzy.com"]
+  spec.email = ["gems@nertzy.com"]
 
   spec.summary = "Ruby bindings for Oxigraph, a SPARQL database and RDF toolkit."
   spec.description = spec.summary
