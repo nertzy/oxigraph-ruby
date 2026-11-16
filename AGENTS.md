@@ -9,7 +9,7 @@ Guidance for coding agents working in this repository. Read [CONTRIBUTING.md](CO
 - `lib/`: the Ruby side of the gem. `lib/oxigraph.rb` loads the compiled extension.
 - `test/`: Minitest tests, which exercise the extension through its Ruby API.
 - `Cargo.toml`, `Cargo.lock`: the Cargo workspace. Both ship in the gem.
-- `.github/workflows/`: `ci.yml` gates pull requests; `build-gems.yml` cross-compiles platform gems.
+- `.github/workflows/`: `ci.yml` gates pull requests; `build-gems.yml` cross-compiles platform gems and installs the Linux ones in containers that have no compiler.
 
 ## Commands
 
