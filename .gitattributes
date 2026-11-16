@@ -1,0 +1,2 @@
+# Check out LF everywhere: bash cannot run the scripts in bin/ with CRLF endings.
+* text=auto eol=lf

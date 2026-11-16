@@ -42,11 +42,19 @@ jobs:
   test:
     name: Ruby ${{ matrix.ruby }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Windows runners default to PowerShell, which cannot run the scripts in bin/.
+    defaults:
+      run:
+        shell: bash
+    env:
+      # The setup action tells bindgen to target x64 on every Windows runner. This
+      # name is read only by a build for ARM Windows, where it takes precedence.
+      BINDGEN_EXTRA_CLANG_ARGS_aarch64_pc_windows_gnullvm: --target=aarch64-w64-windows-gnu
     strategy:
       fail-fast: false
       matrix:
         ruby: ["3.4", "4.0"]
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, windows-latest, windows-11-arm]
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,16 +64,20 @@ jobs:
         uses: oxidize-rb/actions/setup-ruby-and-rust@ec90b4aa48795518d79be3f5cc478d1d7ccd02a8 # v1.5.0
         with:
           ruby-version: ${{ matrix.ruby }}
+          # The action derives an x64 toolchain for every Windows Ruby, so name the ARM one.
+          rustup-toolchain: ${{ matrix.os == 'windows-11-arm' && 'stable-aarch64-pc-windows-gnullvm' || 'stable' }}
           bundler-cache: true
           cargo-cache: true
+          # Cleaning the cache installs a prebuilt tool the action cannot fetch for
+          # ARM Linux or ARM Windows: https://github.com/oxidize-rb/actions/issues/53
+          cargo-cache-clean: ${{ !contains(matrix.os, 'arm') }}
       - run: bin/setup
       - run: bin/rake test
       - name: Smoke-test the packaged gem
-        shell: bash
         run: |
           bin/rake build
-          smoke_dir=$(mktemp -d)
-          trap 'rm -rf "$smoke_dir"' EXIT
+          # Ruby names the directory, so Windows gets a path its native programs accept.
+          smoke_dir=$(ruby -rtmpdir -e "print Dir.mktmpdir")
           gem install --install-dir "$smoke_dir/gems" pkg/oxigraph-*.gem
           cd "$smoke_dir"
           GEM_HOME="$smoke_dir/gems" GEM_PATH="$smoke_dir/gems" BUNDLE_GEMFILE="" ruby -e '
