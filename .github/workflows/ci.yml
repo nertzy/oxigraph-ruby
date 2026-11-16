@@ -83,5 +83,5 @@ jobs:
           GEM_HOME="$smoke_dir/gems" GEM_PATH="$smoke_dir/gems" BUNDLE_GEMFILE="" ruby -e '
             require "oxigraph"
             abort "not loaded from the installed gem" unless Gem.loaded_specs.key?("oxigraph")
-            abort "unexpected greeting" unless Oxigraph.hello("gem") == "Hello gem, from Rust!"
+            abort "a new store is not empty" unless Oxigraph::Store.new.empty?
           '
