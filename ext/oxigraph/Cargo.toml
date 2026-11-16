@@ -2,7 +2,7 @@
 name = "oxigraph"
 version = "0.1.0"
 edition = "2021"
-authors = ["Grant Hutchins <git@nertzy.com>"]
+authors = ["Grant Hutchins <gems@nertzy.com>"]
 license = "MIT"
 publish = false
 
