@@ -13,3 +13,4 @@ gem "rake-compiler"
 gem "minitest"
 
 gem "standard", ">= 1.35.1"
+gem "rubocop-minitest"
