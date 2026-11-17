@@ -1,0 +1,174 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+class TestQuery < Minitest::Test
+  WHERE_WITH_SERVICE = {
+    "plain" => "{ SERVICE <http://example.com/sparql> { ?s ?p ?o } }",
+    "silent" => "{ SERVICE SILENT <http://example.com/sparql> { ?s ?p ?o } }",
+    "named by a variable" => "{ ?s ?p ?endpoint SERVICE ?endpoint { ?s ?p ?o } }",
+    "in a group" => "{ ?s ?p ?o { SERVICE <http://example.com/sparql> { ?s ?p ?o } } }",
+    "in OPTIONAL" => "{ ?s ?p ?o OPTIONAL { SERVICE <http://example.com/sparql> { ?s ?q ?x } } }",
+    "in UNION" => "{ { ?s ?p ?o } UNION { SERVICE <http://example.com/sparql> { ?s ?p ?o } } }",
+    "in MINUS" => "{ ?s ?p ?o MINUS { SERVICE <http://example.com/sparql> { ?s ?p ?o } } }",
+    "in GRAPH" => "{ GRAPH ?g { SERVICE <http://example.com/sparql> { ?s ?p ?o } } }",
+    "in a subquery" => "{ { SELECT ?s WHERE { SERVICE <http://example.com/sparql> { ?s ?p ?o } } } }",
+    "in FILTER EXISTS" => "{ ?s ?p ?o FILTER EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } } }",
+    "in FILTER NOT EXISTS" => "{ ?s ?p ?o FILTER NOT EXISTS { SERVICE SILENT <http://example.com/sparql> { ?s ?p ?o } } }",
+    "in an OPTIONAL filter" => "{ ?s ?p ?o OPTIONAL { ?s ?q ?x FILTER(EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } }) } }",
+    "in BIND" => "{ ?s ?p ?o BIND(EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } } AS ?found) }",
+    "in a function argument" => "{ ?s ?p ?o FILTER(IF(EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } }, true, false)) }",
+    "in an IN list" => "{ ?s ?p ?o FILTER(true IN (false, EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } })) }",
+    "in a nested EXISTS" => "{ ?s ?p ?o FILTER EXISTS { ?s ?p ?o FILTER NOT EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } } } }"
+  }.freeze
+
+  def test_reports_the_form_of_a_query
+    assert_equal :select, Oxigraph::Query.parse("SELECT * WHERE { ?s ?p ?o }").form
+    assert_equal :ask, Oxigraph::Query.parse("ASK { ?s ?p ?o }").form
+    assert_equal :construct, Oxigraph::Query.parse("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }").form
+    assert_equal :describe, Oxigraph::Query.parse("DESCRIBE <http://example.com/a>").form
+  end
+
+  def test_a_query_without_service_has_none
+    refute_predicate Oxigraph::Query.parse("SELECT * WHERE { ?s ?p ?o }"), :service?
+  end
+
+  WHERE_WITH_SERVICE.each do |place, where|
+    define_method(:"test_finds_service_#{place.tr(" ", "_")}") do
+      assert_predicate Oxigraph::Query.parse("SELECT * WHERE #{where}"), :service?
+    end
+  end
+
+  def test_finds_service_in_every_query_form
+    where = WHERE_WITH_SERVICE.fetch("plain")
+
+    assert_predicate Oxigraph::Query.parse("ASK #{where}"), :service?
+    assert_predicate Oxigraph::Query.parse("CONSTRUCT { ?s ?p ?o } WHERE #{where}"), :service?
+    assert_predicate Oxigraph::Query.parse("DESCRIBE ?s WHERE #{where}"), :service?
+  end
+
+  def test_finds_service_in_order_by
+    query = "SELECT * WHERE { ?s ?p ?o } ORDER BY (EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } })"
+
+    assert_predicate Oxigraph::Query.parse(query), :service?
+  end
+
+  def test_finds_service_in_having
+    query = "SELECT ?s WHERE { ?s ?p ?o } GROUP BY ?s HAVING (EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } })"
+
+    assert_predicate Oxigraph::Query.parse(query), :service?
+  end
+
+  def test_finds_service_in_an_aggregate
+    query = "SELECT (MAX(EXISTS { SERVICE <http://example.com/sparql> { ?s ?p ?o } }) AS ?found) WHERE { ?s ?p ?o }"
+
+    assert_predicate Oxigraph::Query.parse(query), :service?
+  end
+
+  def test_the_word_service_in_a_string_or_an_iri_is_not_a_service_clause
+    query = Oxigraph::Query.parse('SELECT * WHERE { ?s <http://example.com/SERVICE> "SERVICE" }')
+
+    refute_predicate query, :service?
+  end
+
+  def test_reports_a_dataset_clause
+    assert_predicate Oxigraph::Query.parse("SELECT * FROM <http://example.com/g> WHERE { ?s ?p ?o }"), :dataset?
+    assert_predicate Oxigraph::Query.parse("SELECT * FROM NAMED <http://example.com/g> WHERE { ?s ?p ?o }"), :dataset?
+    assert_predicate Oxigraph::Query.parse("ASK FROM <http://example.com/g> { ?s ?p ?o }"), :dataset?
+  end
+
+  def test_a_query_without_a_dataset_clause_has_none
+    refute_predicate Oxigraph::Query.parse("SELECT * WHERE { GRAPH <http://example.com/g> { ?s ?p ?o } }"), :dataset?
+  end
+
+  def test_converts_back_to_sparql_that_parses_to_the_same_query
+    query = Oxigraph::Query.parse("SELECT ?s WHERE { ?s ?p ?o } ORDER BY ?s LIMIT 3")
+
+    assert_match(/SELECT/, query.to_s)
+    assert_equal query.to_s, Oxigraph::Query.parse(query.to_s).to_s
+  end
+
+  def test_inspects_readably
+    assert_match(/\A#<Oxigraph::Query SELECT .*>\z/, Oxigraph::Query.parse("SELECT * WHERE { ?s ?p ?o }").inspect)
+  end
+
+  def test_is_frozen
+    assert_predicate Oxigraph::Query.parse("ASK { ?s ?p ?o }"), :frozen?
+  end
+
+  def test_takes_predeclared_prefixes
+    query = Oxigraph::Query.parse("SELECT * WHERE { ex:a ?p ?o }", prefixes: {"ex" => "http://example.com/"})
+
+    assert_includes query.to_s, "<http://example.com/a>"
+  end
+
+  def test_takes_prefixes_named_by_symbols
+    query = Oxigraph::Query.parse("SELECT * WHERE { ex:a ?p ?o }", prefixes: {ex: "http://example.com/"})
+
+    assert_includes query.to_s, "<http://example.com/a>"
+  end
+
+  def test_a_prefix_in_the_query_overrides_a_predeclared_one
+    query = Oxigraph::Query.parse(
+      "PREFIX ex: <http://example.org/> SELECT * WHERE { ex:a ?p ?o }",
+      prefixes: {"ex" => "http://example.com/"}
+    )
+
+    assert_includes query.to_s, "<http://example.org/a>"
+  end
+
+  def test_resolves_relative_iris_against_a_base_iri
+    query = Oxigraph::Query.parse("SELECT * WHERE { <a> ?p ?o }", base_iri: "http://example.com/")
+
+    assert_includes query.to_s, "<http://example.com/a>"
+  end
+
+  def test_raises_a_syntax_error_that_says_where
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE {\n  ?s ?p\n}") }
+
+    assert_kind_of Oxigraph::Error, error
+    assert_match(/\Aerror at 3:\d+: /, error.message)
+  end
+
+  def test_rejects_an_undeclared_prefix
+    assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { ex:a ?p ?o }") }
+  end
+
+  def test_rejects_every_kind_of_update
+    updates = [
+      "INSERT DATA { <http://example.com/a> <http://example.com/p> <http://example.com/b> }",
+      "DELETE DATA { <http://example.com/a> <http://example.com/p> <http://example.com/b> }",
+      "DELETE WHERE { ?s ?p ?o }",
+      "INSERT { ?s ?p ?o } WHERE { ?s ?p ?o }",
+      "LOAD <http://example.com/data.ttl>",
+      "CLEAR ALL",
+      "DROP ALL",
+      "CREATE GRAPH <http://example.com/g>"
+    ]
+
+    updates.each do |update|
+      assert_raises(Oxigraph::QuerySyntaxError, update) { Oxigraph::Query.parse(update) }
+    end
+  end
+
+  def test_rejects_an_invalid_base_iri
+    assert_raises(ArgumentError) { Oxigraph::Query.parse("ASK { ?s ?p ?o }", base_iri: "not an iri") }
+  end
+
+  def test_rejects_an_invalid_prefix_iri
+    assert_raises(ArgumentError) { Oxigraph::Query.parse("ASK { ?s ?p ?o }", prefixes: {"ex" => "not an iri"}) }
+  end
+
+  def test_rejects_prefixes_that_are_not_a_hash
+    assert_raises(TypeError) { Oxigraph::Query.parse("ASK { ?s ?p ?o }", prefixes: "ex") }
+  end
+
+  def test_rejects_a_query_that_is_not_a_string
+    assert_raises(TypeError) { Oxigraph::Query.parse(42) }
+  end
+
+  def test_is_built_only_by_parsing
+    assert_raises(TypeError) { Oxigraph::Query.new }
+    assert_raises(TypeError) { Oxigraph::Query.allocate }
+  end
+end

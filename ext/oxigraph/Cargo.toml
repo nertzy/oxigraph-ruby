@@ -16,6 +16,9 @@ magnus = { version = "0.9" }
 # feature is enabled, so nothing here can open a network connection.
 oxigraph = { version = "0.5.13", default-features = false }
 rb-sys = { version = "0.9", features = ["stable-api-compiled-fallback"] }
+# The SPARQL syntax tree, read to find SERVICE clauses. Upstream pins the exact
+# version; these are the features it turns on, so the tree has the same shape here.
+spargebra = { version = "0.4.8", features = ["sep-0002", "sep-0006"] }
 
 [build-dependencies]
 rb-sys-env = "0.2.2"
