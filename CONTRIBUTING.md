@@ -30,6 +30,10 @@ Run `bin/standardrb --fix` and `cargo fmt --all` to apply the fixes those tools 
 
 Add or update tests for behavior changes. Behavior is tested from Ruby, in `test/`. Pull requests should explain the problem, the chosen behavior, and any user-visible documentation changes.
 
+## Releasing
+
+Releases are published by a GitHub Actions workflow, never from a maintainer's machine. See [RELEASING.md](RELEASING.md).
+
 ## Reporting bugs and proposing changes
 
 Use [GitHub issues](https://github.com/nertzy/oxigraph-ruby/issues) for reproducible bugs and focused proposals. For vulnerabilities, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.

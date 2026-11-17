@@ -8,8 +8,9 @@ Guidance for coding agents working in this repository. Read [CONTRIBUTING.md](CO
 - `bin/`: checked-in development scripts. `setup` and `console` are hand-written; `rake` and `standardrb` are Bundler binstubs. None of them ship in the gem.
 - `lib/`: the Ruby side of the gem. `lib/oxigraph.rb` loads the compiled extension.
 - `test/`: Minitest tests, which exercise the extension through its Ruby API.
+- `script/`: scripts the workflows run. `verify_native_gem.rb` installs a precompiled gem and uses it.
 - `Cargo.toml`, `Cargo.lock`: the Cargo workspace. Both ship in the gem.
-- `.github/workflows/`: `ci.yml` gates pull requests; `build-gems.yml` cross-compiles platform gems and installs the Linux ones in containers that have no compiler.
+- `.github/workflows/`: `ci.yml` gates pull requests; `release.yml` builds the source gem and the precompiled gems, installs each precompiled gem on its own platform, and publishes on a version tag after approval. [RELEASING.md](RELEASING.md) describes a release.
 
 ## Commands
 
