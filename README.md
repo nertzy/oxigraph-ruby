@@ -135,7 +135,7 @@ Oxigraph::Query.parse("SELECT * WHERE { ?s ?p ex:Thing }")
 # raises Oxigraph::QuerySyntaxError: error at 1:24: the prefix "ex:" is not declared
 ```
 
-For other syntax errors the message is the parser's own, and its wording may change.
+An undeclared prefix that first appears after a `<` comparison or an embedded triple is not named. There, and for other syntax errors, the message is the parser's own, and its wording may change.
 
 A query that fails while it runs raises `Oxigraph::QueryEvaluationError`.
 
