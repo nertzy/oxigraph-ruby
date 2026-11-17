@@ -26,6 +26,12 @@ jobs:
           ruby-version: "4.0"
           bundler-cache: true
           cargo-cache: true
+          # The setup action saves the Cargo cache as it finishes unless this is
+          # false, which is before anything compiles. Saved at the end of the job,
+          # the cache holds the compiled dependencies.
+          cache-save-always: false
+          # Clippy's build output is not the test jobs', so each keeps its own.
+          cache-version: v1-lint
       - run: bin/rake standard cargo:fmt cargo:clippy
       - uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
         with:
@@ -68,6 +74,13 @@ jobs:
           rustup-toolchain: ${{ matrix.os == 'windows-11-arm' && 'stable-aarch64-pc-windows-gnullvm' || 'stable' }}
           bundler-cache: true
           cargo-cache: true
+          # The setup action saves the Cargo cache as it finishes unless this is
+          # false, which is before anything compiles. Saved at the end of the job,
+          # the cache holds the compiled dependencies.
+          cache-save-always: false
+          # One cache for each runner and Ruby: the extension is compiled against
+          # the Ruby it is built for.
+          cache-version: v1-test-${{ matrix.os }}-ruby-${{ matrix.ruby }}
           # Cleaning the cache installs a prebuilt tool the action cannot fetch for
           # ARM Linux or ARM Windows: https://github.com/oxidize-rb/actions/issues/53
           cargo-cache-clean: ${{ !contains(matrix.os, 'arm') }}
