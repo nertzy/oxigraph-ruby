@@ -4,7 +4,7 @@ use magnus::{kwargs, prelude::*, Error, ExceptionClass, RModule, Ruby};
 use oxigraph::io::RdfSyntaxError;
 use spargebra::SparqlSyntaxError;
 
-use crate::prefix::first_undeclared;
+use crate::prefix::Undeclared;
 
 /// Builds an `Oxigraph::Error`, the base class that `lib/oxigraph/errors.rb`
 /// defines.
@@ -42,27 +42,27 @@ pub fn parse_error(ruby: &Ruby, cause: &RdfSyntaxError) -> Error {
 /// it, so it is read back from there. An error upstream reports without a
 /// position leaves both nil.
 ///
-/// `text` is what upstream refused and `declared` the prefixes the caller
-/// passed. When the text uses a prefix nothing declared, the error names it
-/// and points at it. The parser stops just after such a name, so a name
-/// beyond where it stopped is not what it refused, and its own message stays.
+/// `undeclared` is the prefix that upstream refused the text for, when that
+/// is why. The error then names the prefix and points at it instead.
 pub fn query_syntax_error(
     ruby: &Ruby,
     cause: &SparqlSyntaxError,
-    text: &str,
-    declared: &[String],
+    undeclared: Option<Undeclared>,
 ) -> Error {
-    let mut message = cause.to_string();
-    let mut start = position_in(&message);
-    if let (Some(reached), Some(name)) = (start, first_undeclared(text, declared)) {
-        if (name.line, name.column) < reached {
-            message = format!(
+    let (message, start) = match undeclared {
+        Some(name) => (
+            format!(
                 "error at {}:{}: the prefix \"{}:\" is not declared",
                 name.line, name.column, name.prefix
-            );
-            start = Some((name.line, name.column));
+            ),
+            Some((name.line, name.column)),
+        ),
+        None => {
+            let message = cause.to_string();
+            let start = position_in(&message);
+            (message, start)
         }
-    }
+    };
     let position = kwargs!(
         "line" => start.map(|(line, _)| line),
         "column" => start.map(|(_, column)| column)
@@ -77,7 +77,7 @@ pub fn query_syntax_error(
 
 /// Reads the line and column from a message such as
 /// `error at 3:9: expected ...`, both already counted from one.
-fn position_in(message: &str) -> Option<(usize, usize)> {
+pub fn position_in(message: &str) -> Option<(usize, usize)> {
     let (position, _) = message.strip_prefix("error at ")?.split_once(": ")?;
     let (line, column) = position.split_once(':')?;
     Some((line.parse().ok()?, column.parse().ok()?))

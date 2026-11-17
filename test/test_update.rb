@@ -88,4 +88,18 @@ class TestUpdate < Minitest::Test
 
     assert_match(/the prefix "b:" is not declared\z/, error.message)
   end
+
+  # Upstream reports whichever shared blank node a randomly ordered set yields
+  # first, so two parses of this text can word the error differently.
+  def test_blames_no_prefix_for_an_error_that_has_no_position
+    update = "INSERT DATA { _:a <http://e/p> _:b } ; INSERT DATA { _:a <http://e/p> _:b } ; " \
+             "DELETE {} WHERE { ?a ?p ?o FILTER(?a<'x>ex:p') }"
+
+    50.times do
+      error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse(update) }
+
+      assert_match(/\AThe blank node _:[ab] cannot be shared/, error.message)
+      assert_equal [nil, nil], [error.line, error.column]
+    end
+  end
 end

@@ -263,6 +263,25 @@ class TestQuery < Minitest::Test
     end
   end
 
+  def test_names_an_undeclared_prefix_that_another_error_follows
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { ?s ex:p ?o . ?s ?p }") }
+
+    assert_equal 'error at 1:21: the prefix "ex:" is not declared', error.message
+  end
+
+  def test_blames_no_prefix_that_only_a_string_or_a_comment_holds
+    queries = [
+      "SELECT * WHERE { ?s ?p ?o FILTER(?a<'x>ex:p') ",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?a<?b)#a>b ex:p\n "
+    ]
+
+    queries.each do |query|
+      error = assert_raises(Oxigraph::QuerySyntaxError, query) { Oxigraph::Query.parse(query) }
+
+      refute_match(/is not declared/, error.message, query)
+    end
+  end
+
   def test_names_an_undeclared_prefix_in_unusual_text
     queries = {
       "SELECT * WHERE { # note\r ?s ?p ex:a }" => "ex:",

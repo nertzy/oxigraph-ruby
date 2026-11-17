@@ -3,7 +3,9 @@
 //! Upstream reports an undeclared prefix as a general syntax error whose
 //! message lists the characters it expected and never names the prefix. This
 //! looks for the name itself, and only runs on text upstream has refused. Its
-//! tokens follow the terminals of upstream's grammar.
+//! tokens follow the terminals of upstream's grammar, but it does not parse,
+//! so it can take text inside a string or a comment for a name. What it finds
+//! is a candidate, which the caller checks against the parser.
 
 /// A prefixed name whose prefix nothing declared, and where it starts, with
 /// the line and column counted from one in characters.

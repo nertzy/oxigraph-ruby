@@ -9,10 +9,15 @@ use oxigraph::sparql::{
 };
 use oxigraph::store::Store;
 use spargebra::algebra::{AggregateExpression, Expression, GraphPattern, OrderExpression};
-use spargebra::SparqlParser;
+use spargebra::{SparqlParser, SparqlSyntaxError};
 
-use crate::error::{argument_error, error, named_error, query_syntax_error};
+use crate::error::{argument_error, error, named_error, position_in, query_syntax_error};
 use crate::model::{frozen, term_to_value, triple_to_value};
+use crate::prefix::first_undeclared;
+
+/// What an undeclared prefix stands for while `parse_text` checks whether
+/// declaring it changes what the parser says.
+const STAND_IN_IRI: &str = "urn:undeclared:";
 
 /// A parsed SPARQL query, exposed to Ruby as `Oxigraph::Query`.
 #[magnus::wrap(class = "Oxigraph::Query", free_immediately, size)]
@@ -37,9 +42,7 @@ impl Query {
         text: &str,
         prefixes: &[String],
     ) -> Result<Self, Error> {
-        let inner = parser
-            .parse_query(text)
-            .map_err(|cause| query_syntax_error(ruby, &cause, text, prefixes))?;
+        let inner = parse_text(ruby, parser, text, prefixes, SparqlParser::parse_query)?;
         let service = pattern_has_service(pattern_of(&inner));
         Ok(Self { inner, service })
     }
@@ -85,9 +88,7 @@ pub struct Update {
 impl Update {
     fn parse(ruby: &Ruby, arguments: &[Value]) -> Result<Obj<Self>, Error> {
         let (text, parser, prefixes) = text_and_parser(ruby, arguments)?;
-        let inner = parser
-            .parse_update(&text)
-            .map_err(|cause| query_syntax_error(ruby, &cause, &text, &prefixes))?;
+        let inner = parse_text(ruby, parser, &text, &prefixes, SparqlParser::parse_update)?;
         Ok(frozen(ruby, Self { inner }))
     }
 
@@ -100,6 +101,43 @@ impl Update {
     fn inspect(&self) -> String {
         format!("#<Oxigraph::Update {}>", self.to_s())
     }
+}
+
+/// Parses `text` as a query or an update, whichever `parse` reads. `prefixes`
+/// names the prefixes `parser` was given.
+///
+/// The error for a refused text names a prefix the text uses and nothing
+/// declared, but only when the parser bears that out: the text is parsed
+/// again with the prefix declared, and the prefix is named when the parser
+/// then accepts the text or refuses it differently. A name the parser never
+/// read as a prefix, such as one inside a string, changes nothing and leaves
+/// the parser's own message.
+///
+/// An error without a position names no prefix. The parser reports one for
+/// text whose syntax it accepted, and which of several shared blank nodes it
+/// names varies from one parse of the same text to the next.
+fn parse_text<T>(
+    ruby: &Ruby,
+    parser: SparqlParser,
+    text: &str,
+    prefixes: &[String],
+    parse: fn(SparqlParser, &str) -> Result<T, SparqlSyntaxError>,
+) -> Result<T, Error> {
+    parse(parser.clone(), text).map_err(|cause| {
+        let refusal = cause.to_string();
+        let undeclared = position_in(&refusal)
+            .and_then(|_| first_undeclared(text, prefixes))
+            .filter(|name| {
+                parser
+                    .clone()
+                    .with_prefix(&name.prefix, STAND_IN_IRI)
+                    .is_ok_and(|parser| match parse(parser, text) {
+                        Ok(_) => true,
+                        Err(again) => again.to_string() != refusal,
+                    })
+            });
+        query_syntax_error(ruby, &cause, undeclared)
+    })
 }
 
 /// Reads the arguments that `Query.parse` and `Update.parse` share: the text,
