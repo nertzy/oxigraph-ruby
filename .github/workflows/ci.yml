@@ -4,6 +4,11 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Nothing pins the Ruby patch release, the Rust toolchain, the gems, or the
+  # runner images, so a weekly run finds what a new one breaks.
+  schedule:
+    - cron: "48 23 * * 2" # Tuesdays at 23:48 UTC
+  workflow_dispatch:
 
 permissions:
   contents: read
