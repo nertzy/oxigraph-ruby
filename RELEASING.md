@@ -4,7 +4,7 @@ A release is a version tag. Pushing one starts the [Release workflow](.github/wo
 
 ## What the workflow does
 
-1. Builds the source gem and one precompiled gem for each supported platform.
+1. Checks the tag, then builds the source gem and one precompiled gem for each supported platform.
 2. Installs each precompiled gem on its own platform, on Ruby 3.4 and 4.0, and runs a query with it. The Linux gems are installed in containers that have no compiler, so a gem cannot pass by compiling its extension.
 3. Waits at the `release` environment until a reviewer approves the deployment.
 4. Signs each gem with Sigstore and pushes it to RubyGems through [trusted publishing](https://guides.rubygems.org/trusted-publishing/). No API key is stored.
@@ -12,7 +12,7 @@ A release is a version tag. Pushing one starts the [Release workflow](.github/wo
 
 The gems that are pushed are the ones step 2 installed, not a rebuild of them.
 
-A manual run of the workflow, or a pull request that changes it, runs steps 1 and 2 only. Use a manual run to check a commit before tagging it.
+A manual run of the workflow, even one started from a tag, or a pull request that changes it, runs steps 1 and 2 only. Use a manual run to check a commit before tagging it.
 
 ## The changelog
 
