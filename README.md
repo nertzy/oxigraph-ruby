@@ -6,13 +6,13 @@ This is an unofficial binding and is not affiliated with the Oxigraph project.
 
 ## Install
 
-The gem is not published to RubyGems yet. Build it from source by pointing Bundler at a commit of this repository:
+Install from [RubyGems](https://rubygems.org/gems/oxigraph) with `gem install oxigraph`, or add it to your Gemfile:
 
 ```ruby
-gem "oxigraph", git: "https://github.com/nertzy/oxigraph-ruby", ref: "<commit SHA>"
+gem "oxigraph", "~> 0.1.0"
 ```
 
-Building needs Ruby 3.4 or newer and a [Rust toolchain](https://rustup.rs) at version 1.87 or newer.
+Precompiled gems are available for Ruby 3.4 and 4.0 on Linux (glibc and musl), macOS, and Windows, on both x86-64 and ARM64. Installing one does not need Rust. Building the source gem needs a [Rust toolchain](https://rustup.rs) at version 1.87 or newer.
 
 ## Stores and queries
 
@@ -177,7 +177,6 @@ triple.to_s    # => "<http://example.com/a> <http://example.com/p> \"chat\"@fr"
 - JSON-LD that refers to a remote context fails to load, because the gem never fetches anything.
 - Stores live in memory only. The gem is built without RocksDB, so there is no on-disk store.
 - The gem is built without an HTTP client, so it never opens a network connection.
-- There are no precompiled gems, so every install compiles the Rust extension.
 - Only Ruby 3.4 and 4.0 are tested.
 
 ## Contributing
