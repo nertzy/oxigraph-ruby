@@ -199,7 +199,7 @@ class TestQuery < Minitest::Test
       %(SELECT * WHERE { ?s ?p "1"^^xsd:integer }) => "xsd:",
       "SELECT * WHERE { ?s ?p ?o FILTER(?o = ex:a) }" => "ex:",
       "SELECT * WHERE { ?s ?p :a }" => ":",
-      "SELECT * WHERE { << ?s ?p ex:a >> ?q ?o }" => "ex:",
+      "SELECT * WHERE { ?s ex:p ?o FILTER(?o < 18) }" => "ex:",
       "PREFIX a: <http://example.com/>\nSELECT * WHERE { a:x ?p b:y }" => "b:"
     }
 
@@ -242,5 +242,60 @@ class TestQuery < Minitest::Test
     error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { ?s ?p } ex:a") }
 
     refute_match(/is not declared/, error.message)
+  end
+
+  def test_keeps_the_parsers_error_after_a_less_than_sign_that_opens_no_iri
+    queries = [
+      "SELECT * WHERE { ?s ?p ?o FILTER(?s < ex:a) }",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?s<ex:a) }",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o<18) . ?s ex:p ?o }",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o<1e2) . ?s ex:p ?o }",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o<1.8E-2) . ?s ex:p ?o }",
+      "SELECT * WHERE { << ?s ?p ex:a >> ?q ?o }",
+      "SELECT * WHERE { <<ex:a ?p ?o>> ?q ?r }",
+      "SELECT * WHERE { <<<http://example.com/a> ?p ex:o>> ?q ?r }"
+    ]
+
+    queries.each do |query|
+      error = assert_raises(Oxigraph::QuerySyntaxError, query) { Oxigraph::Query.parse(query) }
+
+      refute_match(/is not declared/, error.message, query)
+    end
+  end
+
+  def test_names_an_undeclared_prefix_in_unusual_text
+    queries = {
+      "SELECT * WHERE { # note\r ?s ?p ex:a }" => "ex:",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o-ex:a > 1) }" => "ex:",
+      "SELECT * WHERE { _:b.PREFIX ex:p ?o }" => "ex:",
+      "SELECT * WHERE { ?s ?p e\u0301x:a }" => "e\u0301x:"
+    }
+
+    queries.each do |query, prefix|
+      error = assert_raises(Oxigraph::QuerySyntaxError, query) { Oxigraph::Query.parse(query) }
+
+      assert_equal %(the prefix "#{prefix}" is not declared), error.message.sub(/\Aerror at \d+:\d+: /, ""), query
+    end
+  end
+
+  def test_blames_no_prefix_in_unusual_text
+    queries = [
+      "# note\rPREFIX ex: <http://example.com/>\nSELECT * WHERE { ex:a ex:p ",
+      "PREFIX # note\n ex: <http://example.com/>\nSELECT * WHERE { ex:a ex:p ",
+      "SELECT * WHERE { ?s ?p <urn:foo ",
+      "SELECT * WHERE { ?s ?p <urn:foo ?o ex:a> ",
+      "BASE <http://example.com/> SELECT * WHERE { ?s ?p <2026/ex:a",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o<<http://example.com/a ) }",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o<<http://example.com/a ) } # >>",
+      "PREFIX e\u0301x: <http://example.com/>\nSELECT * WHERE { e\u0301x:a ?p ",
+      "PREFIX ex: <http://example.com/>\nSELECT * WHERE { ex:a\u00B7b:c ?p ",
+      "PREFIX ex: <http://example.com/>\nSELECT * WHERE { ?s ?p \"chat\"@fr-be ; ex:p "
+    ]
+
+    queries.each do |query|
+      error = assert_raises(Oxigraph::QuerySyntaxError, query) { Oxigraph::Query.parse(query) }
+
+      refute_match(/is not declared/, error.message, query)
+    end
   end
 end
