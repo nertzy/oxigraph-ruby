@@ -18,12 +18,24 @@ on:
 permissions:
   contents: read
 
+# A newer push to a pull request replaces its run. A release is never canceled,
+# and the event name keeps a manual run on a tag out of the tag push's group,
+# where queuing it would replace a publishing run that was waiting its turn.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# No job reads or writes the Actions cache, so nothing a cache holds can reach
+# a published gem. The bundler-cache inputs below still install the bundle.
+cache-mode: none
+
 jobs:
   # Every job that builds a gem waits for this one, so a tag that cannot be
   # released stops the run before anything is built.
   check-tag:
     name: Check the tag
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
@@ -58,6 +70,7 @@ jobs:
 
   ci-data:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       result: ${{ steps.fetch.outputs.result }}
     steps:
@@ -71,6 +84,7 @@ jobs:
 
   source-gem:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: check-tag
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,12 +95,7 @@ jobs:
         with:
           ruby-version: "4.0"
           bundler-cache: true
-          cargo-cache: true
-          # The setup action saves the Cargo cache as it finishes unless this is
-          # false, which is before anything compiles. Saved at the end of the job,
-          # the cache holds the compiled dependencies.
-          cache-save-always: false
-          cache-version: v1-source-gem
+          cargo-cache: "false"
 
       - name: Build gem
         run: bin/rake build
@@ -99,6 +108,7 @@ jobs:
   cross-gem:
     name: Compile native gem for ${{ matrix.platform }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [check-tag, ci-data]
     strategy:
       fail-fast: false
@@ -132,6 +142,7 @@ jobs:
     name: Install ${{ matrix.platform }} gem on Ruby ${{ matrix.ruby }}
     needs: [ci-data, cross-gem]
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -199,6 +210,7 @@ jobs:
     if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: [source-gem, verify-native-gem]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: release
     permissions:
       contents: read
@@ -277,6 +289,7 @@ jobs:
     if: github.event_name == 'push' && github.ref_type == 'tag' && needs.check-tag.outputs.prerelease == 'false'
     needs: [check-tag, publish]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write # creating the release
     steps:
