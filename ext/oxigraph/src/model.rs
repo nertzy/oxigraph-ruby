@@ -183,11 +183,7 @@ impl Triple {
     }
 
     fn object(ruby: &Ruby, rb_self: &Self) -> Value {
-        match rb_self.inner.object.clone() {
-            rdf::Term::NamedNode(inner) => frozen(ruby, NamedNode { inner }).as_value(),
-            rdf::Term::BlankNode(inner) => frozen(ruby, BlankNode { inner }).as_value(),
-            rdf::Term::Literal(inner) => frozen(ruby, Literal { inner }).as_value(),
-        }
+        term_to_value(ruby, rb_self.inner.object.clone())
     }
 
     fn to_s(&self) -> String {
@@ -207,9 +203,23 @@ impl Triple {
     }
 }
 
+/// Wraps a term from a query result in the Ruby class for its kind.
+pub fn term_to_value(ruby: &Ruby, term: rdf::Term) -> Value {
+    match term {
+        rdf::Term::NamedNode(inner) => frozen(ruby, NamedNode { inner }).as_value(),
+        rdf::Term::BlankNode(inner) => frozen(ruby, BlankNode { inner }).as_value(),
+        rdf::Term::Literal(inner) => frozen(ruby, Literal { inner }).as_value(),
+    }
+}
+
+/// Wraps a triple from a query result as an `Oxigraph::Triple`.
+pub fn triple_to_value(ruby: &Ruby, inner: rdf::Triple) -> Value {
+    frozen(ruby, Triple { inner }).as_value()
+}
+
 /// Wraps a term for Ruby and freezes it: terms have no mutating methods, and a
 /// frozen object says so.
-fn frozen<T: TypedData>(ruby: &Ruby, term: T) -> Obj<T> {
+pub fn frozen<T: TypedData>(ruby: &Ruby, term: T) -> Obj<T> {
     let object = ruby.obj_wrap(term);
     object.freeze();
     object

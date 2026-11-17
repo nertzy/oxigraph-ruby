@@ -11,3 +11,6 @@ Notable changes to `oxigraph` are documented here.
 - Added the term classes `Oxigraph::NamedNode`, `Oxigraph::BlankNode`, `Oxigraph::Literal`, and `Oxigraph::Triple`.
 - Added `Oxigraph::Store#load`, which reads Turtle, RDF/XML, N-Triples, N-Quads, TriG, N3, and JSON-LD from a string, an `IO`, or a file, and returns an `Oxigraph::LoadSummary`.
 - Added `Oxigraph::ParseError`, which carries the line and column of malformed RDF input.
+- Added `Oxigraph::Store#query`, which runs `SELECT`, `ASK`, `CONSTRUCT`, and `DESCRIBE` queries and streams their results.
+- Added `Oxigraph::Query.parse` and `Oxigraph::Update.parse`, which parse SPARQL without running it. A query reports its form and whether it has a `SERVICE` or a dataset clause.
+- Added `Oxigraph::QuerySyntaxError`, `Oxigraph::QueryEvaluationError`, and `Oxigraph::UnsupportedError`.

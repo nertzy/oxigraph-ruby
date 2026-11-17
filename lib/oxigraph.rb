@@ -18,4 +18,5 @@ rescue LoadError => error
   require "oxigraph/oxigraph"
 end
 
+require_relative "oxigraph/query_results"
 require_relative "oxigraph/store"

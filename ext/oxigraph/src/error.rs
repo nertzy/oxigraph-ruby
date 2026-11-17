@@ -6,7 +6,12 @@ use oxigraph::io::RdfSyntaxError;
 /// Builds an `Oxigraph::Error`, the base class that `lib/oxigraph/errors.rb`
 /// defines.
 pub fn error(ruby: &Ruby, cause: impl Display) -> Error {
-    match error_class(ruby, "Error") {
+    named_error(ruby, "Error", cause)
+}
+
+/// Builds one of the subclasses of `Oxigraph::Error` that carry only a message.
+pub fn named_error(ruby: &Ruby, class: &str, cause: impl Display) -> Error {
+    match error_class(ruby, class) {
         Ok(class) => Error::new(class, cause.to_string()),
         Err(lookup_failure) => lookup_failure,
     }

@@ -15,4 +15,15 @@ module Oxigraph
       @column = column
     end
   end
+
+  # Raised when a SPARQL query or update does not parse. The message says
+  # where.
+  class QuerySyntaxError < Error; end
+
+  # Raised when a query fails while it runs.
+  class QueryEvaluationError < Error; end
+
+  # Raised for a query that uses a feature this gem leaves out on purpose,
+  # which is SERVICE.
+  class UnsupportedError < Error; end
 end
