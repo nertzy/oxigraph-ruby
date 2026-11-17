@@ -128,14 +128,14 @@ Oxigraph::Update.parse("DROP ALL").to_s # => "DROP ALL ;"
 Oxigraph::Update.parse("nonsense")      # raises Oxigraph::QuerySyntaxError
 ```
 
-A query or update that does not parse raises `Oxigraph::QuerySyntaxError`. Its `line` and `column` say where, counted from one; both are `nil` for the few errors that have no position. When the text uses a prefix that nothing declared, the message names the prefix and the position points at it:
+A query or update that does not parse raises `Oxigraph::QuerySyntaxError`. Its message is the parser's own, and its wording may change. Its `line` and `column` say where the parser stopped, counted from one; both are `nil` for the few errors that have no position.
+
+The parser reports a prefix that nothing declared as an ordinary syntax error. It stops after the name, sometimes on a later line, and its message does not always mention the prefix:
 
 ```ruby
-Oxigraph::Query.parse("SELECT * WHERE { ?s ?p ex:Thing }")
-# raises Oxigraph::QuerySyntaxError: error at 1:24: the prefix "ex:" is not declared
+Oxigraph::Query.parse("SELECT * WHERE { ex:a ?p ?o }")
+# raises Oxigraph::QuerySyntaxError: error at 1:26: expected OPTIONAL
 ```
-
-An undeclared prefix that first appears after a `<` comparison or an embedded triple is not named. There, and for other syntax errors, the message is the parser's own, and its wording may change.
 
 A query that fails while it runs raises `Oxigraph::QueryEvaluationError`.
 
