@@ -171,4 +171,16 @@ class TestQuery < Minitest::Test
     assert_raises(TypeError) { Oxigraph::Query.new }
     assert_raises(TypeError) { Oxigraph::Query.allocate }
   end
+
+  def test_reports_the_line_and_column_of_a_syntax_error
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT *\nWHERE {\n ?s ?p }") }
+
+    assert_equal [3, 9], [error.line, error.column]
+  end
+
+  def test_counts_a_column_in_characters
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { <http://e/é> ?p }") }
+
+    assert_equal [1, 34], [error.line, error.column]
+  end
 end

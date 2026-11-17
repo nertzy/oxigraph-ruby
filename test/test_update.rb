@@ -61,4 +61,17 @@ class TestUpdate < Minitest::Test
     assert_raises(TypeError) { Oxigraph::Update.new }
     assert_raises(TypeError) { Oxigraph::Update.allocate }
   end
+
+  def test_reports_the_line_and_column_of_a_syntax_error
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse("INSERT DATA {\n <http://e/a> }") }
+
+    assert_equal [2, 15], [error.line, error.column]
+  end
+
+  def test_reports_no_position_for_an_error_that_has_none
+    update = "INSERT DATA { _:b <http://e/p> <http://e/o> } ; INSERT DATA { _:b <http://e/p> <http://e/q> }"
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse(update) }
+
+    assert_equal [nil, nil], [error.line, error.column]
+  end
 end

@@ -11,7 +11,7 @@ use oxigraph::store::Store;
 use spargebra::algebra::{AggregateExpression, Expression, GraphPattern, OrderExpression};
 use spargebra::SparqlParser;
 
-use crate::error::{argument_error, error, named_error};
+use crate::error::{argument_error, error, named_error, query_syntax_error};
 use crate::model::{frozen, term_to_value, triple_to_value};
 
 /// A parsed SPARQL query, exposed to Ruby as `Oxigraph::Query`.
@@ -31,7 +31,7 @@ impl Query {
     fn from_text(ruby: &Ruby, parser: SparqlParser, text: &str) -> Result<Self, Error> {
         let inner = parser
             .parse_query(text)
-            .map_err(|cause| named_error(ruby, "QuerySyntaxError", cause))?;
+            .map_err(|cause| query_syntax_error(ruby, &cause))?;
         let service = pattern_has_service(pattern_of(&inner));
         Ok(Self { inner, service })
     }
@@ -79,7 +79,7 @@ impl Update {
         let (text, parser) = text_and_parser(ruby, arguments)?;
         let inner = parser
             .parse_update(&text)
-            .map_err(|cause| named_error(ruby, "QuerySyntaxError", cause))?;
+            .map_err(|cause| query_syntax_error(ruby, &cause))?;
         Ok(frozen(ruby, Self { inner }))
     }
 

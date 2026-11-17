@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use magnus::{kwargs, prelude::*, Error, ExceptionClass, RModule, Ruby};
 use oxigraph::io::RdfSyntaxError;
+use spargebra::SparqlSyntaxError;
 
 /// Builds an `Oxigraph::Error`, the base class that `lib/oxigraph/errors.rb`
 /// defines.
@@ -32,6 +33,33 @@ pub fn parse_error(ruby: &Ruby, cause: &RdfSyntaxError) -> Error {
         Ok(exception) => exception.into(),
         Err(failure) => failure,
     }
+}
+
+/// Builds an `Oxigraph::QuerySyntaxError` that carries where a query or update
+/// went wrong. Upstream keeps the position private and begins its message with
+/// it, so it is read back from there. An error upstream reports without a
+/// position leaves both nil.
+pub fn query_syntax_error(ruby: &Ruby, cause: &SparqlSyntaxError) -> Error {
+    let message = cause.to_string();
+    let start = position_in(&message);
+    let position = kwargs!(
+        "line" => start.map(|(line, _)| line),
+        "column" => start.map(|(_, column)| column)
+    );
+    let exception = error_class(ruby, "QuerySyntaxError")
+        .and_then(|class| class.new_instance((message, position)));
+    match exception {
+        Ok(exception) => exception.into(),
+        Err(failure) => failure,
+    }
+}
+
+/// Reads the line and column from a message such as
+/// `error at 3:9: expected ...`, both already counted from one.
+fn position_in(message: &str) -> Option<(usize, usize)> {
+    let (position, _) = message.strip_prefix("error at ")?.split_once(": ")?;
+    let (line, column) = position.split_once(':')?;
+    Some((line.parse().ok()?, column.parse().ok()?))
 }
 
 pub fn argument_error(ruby: &Ruby, cause: impl Display) -> Error {

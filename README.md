@@ -128,7 +128,7 @@ Oxigraph::Update.parse("DROP ALL").to_s # => "DROP ALL ;"
 Oxigraph::Update.parse("nonsense")      # raises Oxigraph::QuerySyntaxError
 ```
 
-A query or update that does not parse raises `Oxigraph::QuerySyntaxError`, whose message gives the line and column. A query that fails while it runs raises `Oxigraph::QueryEvaluationError`.
+A query or update that does not parse raises `Oxigraph::QuerySyntaxError`. Its `line` and `column` say where, counted from one; both are `nil` for the few errors that have no position. A query that fails while it runs raises `Oxigraph::QueryEvaluationError`.
 
 ## Terms
 
