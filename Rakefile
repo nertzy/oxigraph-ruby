@@ -25,4 +25,25 @@ namespace :cargo do
   task(:clippy) { sh "cargo clippy --all-targets -- -D warnings" }
 end
 
-task default: %i[compile test standard cargo:fmt cargo:clippy]
+desc "Lint the workflows and the Dependabot configuration"
+task(:jactionlint) { sh "jactionlint" }
+
+desc "Lint Markdown"
+task(:markdownlint) { sh %(npx --yes markdownlint-cli2@0.24.1 "**/*.md") }
+
+desc "Run every linter"
+task lint: %i[standard cargo:fmt cargo:clippy jactionlint markdownlint]
+
+namespace :lint do
+  desc "Apply the fixes every linter can make"
+  task fix: "standard:fix" do
+    # Clippy first: its fixes can leave code that rustfmt reformats. The flags
+    # let it edit a checkout that has uncommitted changes.
+    sh "cargo clippy --fix --allow-dirty --allow-staged --all-targets"
+    sh "cargo fmt --all"
+    sh "jactionlint --fix"
+    sh %(npx --yes markdownlint-cli2@0.24.1 --fix "**/*.md")
+  end
+end
+
+task default: %i[compile test lint]

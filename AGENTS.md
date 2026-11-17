@@ -17,10 +17,8 @@ Guidance for coding agents working in this repository. Read [CONTRIBUTING.md](CO
 ```bash
 bin/setup
 bin/rake
-jactionlint
-npx --yes markdownlint-cli2@0.24.1 "**/*.md"
-bin/standardrb --fix
-cargo fmt --all
+bin/rake lint
+bin/rake lint:fix
 ```
 
 ## Rules

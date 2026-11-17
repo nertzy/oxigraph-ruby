@@ -15,16 +15,16 @@ Supported Ruby versions are the ones in [normal maintenance](https://www.ruby-la
 ```bash
 bin/setup
 bin/rake
-jactionlint
-npx --yes markdownlint-cli2@0.24.1 "**/*.md"
+bin/rake lint
+bin/rake lint:fix
 bin/rake build
 ```
 
-`bin/setup` installs the bundle and compiles the extension. `bin/rake` compiles the extension, runs the tests, and runs [Standard](https://github.com/standardrb/standard), `cargo fmt --check`, and Clippy. `bin/rake build` packages the gem into `pkg/`. `bin/console` opens IRB with the gem loaded.
+`bin/setup` installs the bundle and compiles the extension. `bin/rake` compiles the extension, runs the tests, and runs every linter: [Standard](https://github.com/standardrb/standard), `cargo fmt --check`, Clippy, jactionlint, and [markdownlint](https://github.com/DavidAnson/markdownlint-cli2). `bin/rake lint` runs the linters alone, and `bin/rake --tasks` lists the task for each, to run one. `bin/rake build` packages the gem into `pkg/`. `bin/console` opens IRB with the gem loaded.
 
 The scripts in `bin/` are checked in. `bin/rake` and `bin/standardrb` are Bundler binstubs, so they run the bundled versions without `bundle exec`.
 
-Run `bin/standardrb --fix` and `cargo fmt --all` to apply the fixes those tools can make. `jactionlint` checks the workflows and the Dependabot configuration, and `jactionlint --fix` applies the fixes it considers safe.
+`bin/rake lint:fix` applies the fixes the linters can make: `standardrb --fix`, `cargo clippy --fix`, `cargo fmt`, `jactionlint --fix`, and `markdownlint-cli2 --fix`. Each applies only the fixes it considers safe, so run `bin/rake lint` afterwards for what is left. jactionlint checks the workflows and the Dependabot configuration.
 
 `Gemfile.lock` is not checked in, so the bundle resolves to the newest allowed gems. `Cargo.lock` is checked in, because it ships in the gem and pins what a source install compiles.
 
