@@ -16,9 +16,18 @@ module Oxigraph
     end
   end
 
-  # Raised when a SPARQL query or update does not parse. The message says
-  # where.
-  class QuerySyntaxError < Error; end
+  # Raised when a SPARQL query or update does not parse. Its line and column
+  # say where, counted from one; both are nil for an error that has no
+  # position.
+  class QuerySyntaxError < Error
+    attr_reader :line, :column
+
+    def initialize(message = nil, line: nil, column: nil)
+      super(message)
+      @line = line
+      @column = column
+    end
+  end
 
   # Raised when a query fails while it runs.
   class QueryEvaluationError < Error; end

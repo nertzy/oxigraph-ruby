@@ -240,6 +240,18 @@ class TestStoreQuery < Minitest::Test
     end
   end
 
+  def test_reports_the_line_and_column_of_a_syntax_error_in_a_string
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Store.new.query("SELECT *\nWHERE {\n ?s ?p }") }
+
+    assert_equal [3, 9], [error.line, error.column]
+  end
+
+  def test_names_an_undeclared_prefix_in_a_string
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Store.new.query("ASK { ?s ?p ex:a }") }
+
+    assert_equal 'error at 1:13: the prefix "ex:" is not declared', error.message
+  end
+
   private
 
   def select(sparql) = @store.query(Oxigraph::Query.parse(sparql, prefixes: PREFIXES))

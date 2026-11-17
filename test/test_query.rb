@@ -171,4 +171,76 @@ class TestQuery < Minitest::Test
     assert_raises(TypeError) { Oxigraph::Query.new }
     assert_raises(TypeError) { Oxigraph::Query.allocate }
   end
+
+  def test_reports_the_line_and_column_of_a_syntax_error
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT *\nWHERE {\n ?s ?p }") }
+
+    assert_equal [3, 9], [error.line, error.column]
+  end
+
+  def test_counts_a_column_in_characters
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { <http://e/é> ?p }") }
+
+    assert_equal [1, 34], [error.line, error.column]
+  end
+
+  def test_names_an_undeclared_prefix
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { ?s ?p ex:Thing }") }
+
+    assert_equal 'error at 1:24: the prefix "ex:" is not declared', error.message
+    assert_equal [1, 24], [error.line, error.column]
+  end
+
+  def test_names_an_undeclared_prefix_wherever_it_is_used
+    queries = {
+      "SELECT * WHERE { ex:a ?p ?o }" => "ex:",
+      "SELECT * WHERE { ?s ex:p ?o }" => "ex:",
+      "SELECT * WHERE { ?s ex:p/ex:q ?o }" => "ex:",
+      %(SELECT * WHERE { ?s ?p "1"^^xsd:integer }) => "xsd:",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?o = ex:a) }" => "ex:",
+      "SELECT * WHERE { ?s ?p :a }" => ":",
+      "SELECT * WHERE { << ?s ?p ex:a >> ?q ?o }" => "ex:",
+      "PREFIX a: <http://example.com/>\nSELECT * WHERE { a:x ?p b:y }" => "b:"
+    }
+
+    queries.each do |query, prefix|
+      error = assert_raises(Oxigraph::QuerySyntaxError, query) { Oxigraph::Query.parse(query) }
+
+      assert_equal %(the prefix "#{prefix}" is not declared), error.message.sub(/\Aerror at \d+:\d+: /, ""), query
+    end
+  end
+
+  def test_blames_no_prefix_for_another_syntax_error
+    queries = [
+      "SELECT *\nWHERE {\n ?s ?p }",
+      %(SELECT * WHERE { ?s ?p "ex:a" ),
+      %(SELECT * WHERE { ?s ?p """a "quoted" ex:a""" ),
+      "SELECT * WHERE { ?s ?p <urn:ex:a> ",
+      "SELECT * WHERE { ?s ?p _:b ",
+      "SELECT * WHERE { ?s ?p ?o FILTER(?s < ?o && ?o > ?s) ",
+      "# ex:a\nSELECT * WHERE { ?s ?p ",
+      "PREFIX ex: <http://example.com/>\nSELECT * WHERE { ex:a ex:p ",
+      "prefix ex:<http://example.com/> SELECT * WHERE { ex:a ex:p "
+    ]
+
+    queries.each do |query|
+      error = assert_raises(Oxigraph::QuerySyntaxError, query) { Oxigraph::Query.parse(query) }
+
+      refute_match(/is not declared/, error.message, query)
+    end
+  end
+
+  def test_blames_no_prefix_declared_by_argument
+    error = assert_raises(Oxigraph::QuerySyntaxError) do
+      Oxigraph::Query.parse("SELECT * WHERE { ex:a ex:p ", prefixes: {ex: "http://example.com/"})
+    end
+
+    refute_match(/is not declared/, error.message)
+  end
+
+  def test_keeps_the_error_the_parser_reached_before_an_undeclared_prefix
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Query.parse("SELECT * WHERE { ?s ?p } ex:a") }
+
+    refute_match(/is not declared/, error.message)
+  end
 end

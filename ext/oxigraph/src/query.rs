@@ -11,7 +11,7 @@ use oxigraph::store::Store;
 use spargebra::algebra::{AggregateExpression, Expression, GraphPattern, OrderExpression};
 use spargebra::SparqlParser;
 
-use crate::error::{argument_error, error, named_error};
+use crate::error::{argument_error, error, named_error, query_syntax_error};
 use crate::model::{frozen, term_to_value, triple_to_value};
 
 /// A parsed SPARQL query, exposed to Ruby as `Oxigraph::Query`.
@@ -24,14 +24,22 @@ pub struct Query {
 
 impl Query {
     fn parse(ruby: &Ruby, arguments: &[Value]) -> Result<Obj<Self>, Error> {
-        let (text, parser) = text_and_parser(ruby, arguments)?;
-        Ok(frozen(ruby, Self::from_text(ruby, parser, &text)?))
+        let (text, parser, prefixes) = text_and_parser(ruby, arguments)?;
+        let query = Self::from_text(ruby, parser, &text, &prefixes)?;
+        Ok(frozen(ruby, query))
     }
 
-    fn from_text(ruby: &Ruby, parser: SparqlParser, text: &str) -> Result<Self, Error> {
+    /// `prefixes` names the prefixes `parser` was given, for the error a
+    /// refused text raises.
+    fn from_text(
+        ruby: &Ruby,
+        parser: SparqlParser,
+        text: &str,
+        prefixes: &[String],
+    ) -> Result<Self, Error> {
         let inner = parser
             .parse_query(text)
-            .map_err(|cause| named_error(ruby, "QuerySyntaxError", cause))?;
+            .map_err(|cause| query_syntax_error(ruby, &cause, text, prefixes))?;
         let service = pattern_has_service(pattern_of(&inner));
         Ok(Self { inner, service })
     }
@@ -76,10 +84,10 @@ pub struct Update {
 
 impl Update {
     fn parse(ruby: &Ruby, arguments: &[Value]) -> Result<Obj<Self>, Error> {
-        let (text, parser) = text_and_parser(ruby, arguments)?;
+        let (text, parser, prefixes) = text_and_parser(ruby, arguments)?;
         let inner = parser
             .parse_update(&text)
-            .map_err(|cause| named_error(ruby, "QuerySyntaxError", cause))?;
+            .map_err(|cause| query_syntax_error(ruby, &cause, &text, &prefixes))?;
         Ok(frozen(ruby, Self { inner }))
     }
 
@@ -95,8 +103,12 @@ impl Update {
 }
 
 /// Reads the arguments that `Query.parse` and `Update.parse` share: the text,
-/// then `base_iri:` and `prefixes:`.
-fn text_and_parser(ruby: &Ruby, arguments: &[Value]) -> Result<(String, SparqlParser), Error> {
+/// then `base_iri:` and `prefixes:`. Returns the text, a parser that knows the
+/// base IRI and the prefixes, and the names of those prefixes.
+fn text_and_parser(
+    ruby: &Ruby,
+    arguments: &[Value],
+) -> Result<(String, SparqlParser, Vec<String>), Error> {
     let arguments = scan_args::scan_args::<(String,), (), (), (), RHash, ()>(arguments)?;
     let keywords = scan_args::get_kwargs::<
         _,
@@ -107,6 +119,7 @@ fn text_and_parser(ruby: &Ruby, arguments: &[Value]) -> Result<(String, SparqlPa
     let (base_iri, prefixes) = keywords.optional;
 
     let mut parser = SparqlParser::new();
+    let mut names = Vec::new();
     if let Some(base_iri) = base_iri.flatten() {
         parser = parser
             .with_base_iri(base_iri)
@@ -123,12 +136,13 @@ fn text_and_parser(ruby: &Ruby, arguments: &[Value]) -> Result<(String, SparqlPa
             Ok(ForEach::Continue)
         })?;
         for (name, iri) in declared {
+            names.push(name.clone());
             parser = parser
                 .with_prefix(name, iri)
                 .map_err(|cause| argument_error(ruby, cause))?;
         }
     }
-    Ok((arguments.required.0, parser))
+    Ok((arguments.required.0, parser, names))
 }
 
 fn pattern_of(query: &spargebra::Query) -> &GraphPattern {
@@ -249,7 +263,7 @@ pub fn evaluate(ruby: &Ruby, store: &Store, query: Value) -> Result<Value, Error
                     ),
                 ));
             };
-            parsed = Query::from_text(ruby, SparqlParser::new(), &text.to_string()?)?;
+            parsed = Query::from_text(ruby, SparqlParser::new(), &text.to_string()?, &[])?;
             &parsed
         }
     };

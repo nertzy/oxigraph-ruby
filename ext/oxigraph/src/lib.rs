@@ -3,6 +3,7 @@ use magnus::{Error, Ruby};
 mod error;
 mod load;
 mod model;
+mod prefix;
 mod query;
 mod store;
 

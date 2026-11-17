@@ -61,4 +61,31 @@ class TestUpdate < Minitest::Test
     assert_raises(TypeError) { Oxigraph::Update.new }
     assert_raises(TypeError) { Oxigraph::Update.allocate }
   end
+
+  def test_reports_the_line_and_column_of_a_syntax_error
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse("INSERT DATA {\n <http://e/a> }") }
+
+    assert_equal [2, 15], [error.line, error.column]
+  end
+
+  def test_reports_no_position_for_an_error_that_has_none
+    update = "INSERT DATA { _:b <http://e/p> <http://e/o> } ; INSERT DATA { _:b <http://e/p> <http://e/q> }"
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse(update) }
+
+    assert_equal [nil, nil], [error.line, error.column]
+  end
+
+  def test_names_an_undeclared_prefix
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse("INSERT DATA { ex:a ex:p ex:b }") }
+
+    assert_equal 'error at 1:15: the prefix "ex:" is not declared', error.message
+    assert_equal [1, 15], [error.line, error.column]
+  end
+
+  def test_names_a_prefix_no_earlier_operation_declared
+    update = "PREFIX a: <http://example.com/> INSERT DATA { a:x a:p a:y } ; INSERT DATA { a:x a:p b:y }"
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse(update) }
+
+    assert_match(/the prefix "b:" is not declared\z/, error.message)
+  end
 end
