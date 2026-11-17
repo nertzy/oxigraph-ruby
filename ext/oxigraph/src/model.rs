@@ -316,6 +316,7 @@ fn type_error(ruby: &Ruby, value: Value, expected: &str) -> Error {
 
 pub fn init(ruby: &Ruby, module: RModule) -> Result<(), Error> {
     let class = module.define_class("NamedNode", ruby.class_object())?;
+    class.undef_default_alloc_func();
     class.define_singleton_method("new", function!(NamedNode::new, 1))?;
     class.define_method("value", method!(NamedNode::value, 0))?;
     class.define_method("to_s", method!(NamedNode::to_s, 0))?;
@@ -326,6 +327,7 @@ pub fn init(ruby: &Ruby, module: RModule) -> Result<(), Error> {
     define_copying(class)?;
 
     let class = module.define_class("BlankNode", ruby.class_object())?;
+    class.undef_default_alloc_func();
     class.define_singleton_method("new", function!(BlankNode::new, -1))?;
     class.define_method("value", method!(BlankNode::value, 0))?;
     class.define_method("to_s", method!(BlankNode::to_s, 0))?;
@@ -336,6 +338,7 @@ pub fn init(ruby: &Ruby, module: RModule) -> Result<(), Error> {
     define_copying(class)?;
 
     let class = module.define_class("Literal", ruby.class_object())?;
+    class.undef_default_alloc_func();
     class.define_singleton_method("new", function!(Literal::new, -1))?;
     class.define_method("value", method!(Literal::value, 0))?;
     class.define_method("datatype", method!(Literal::datatype, 0))?;
@@ -348,6 +351,7 @@ pub fn init(ruby: &Ruby, module: RModule) -> Result<(), Error> {
     define_copying(class)?;
 
     let class = module.define_class("Triple", ruby.class_object())?;
+    class.undef_default_alloc_func();
     class.define_singleton_method("new", function!(Triple::new, 3))?;
     class.define_method("subject", method!(Triple::subject, 0))?;
     class.define_method("predicate", method!(Triple::predicate, 0))?;
