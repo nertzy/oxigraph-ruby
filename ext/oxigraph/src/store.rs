@@ -44,6 +44,7 @@ impl Store {
 
 pub fn init(ruby: &Ruby, module: RModule) -> Result<(), Error> {
     let class = module.define_class("Store", ruby.class_object())?;
+    class.undef_default_alloc_func();
     class.define_singleton_method("new", function!(Store::new, 0))?;
     class.define_method("size", method!(Store::size, 0))?;
     class.define_method("empty?", method!(Store::is_empty, 0))?;
