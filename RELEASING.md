@@ -22,8 +22,8 @@ A final release moves the `Unreleased` entries under a `## [<version>] - YYYY-MM
 
 ## One-time setup
 
-- **RubyGems:** a trusted publisher for the `oxigraph` gem that names this repository, the workflow file `release.yml`, and the environment `release`. Before the gem's first release this is a pending trusted publisher on the account that will own the gem.
-- **GitHub:** an environment named `release` with required reviewers.
+- **RubyGems:** a trusted publisher for the `oxigraph` gem that names this repository, the workflow file `release.yml`, and the environment `release`. Before the gem's first release this is a pending trusted publisher on the account that will own the gem. A pending trusted publisher expires 12 hours after it is created, so create it shortly before pushing the first tag. Its page shows the account's ID.
+- **GitHub:** an environment named `release` with required reviewers and a variable named `RUBYGEMS_OWNER` that holds that account's ID. The publish job sends it to RubyGems, which creates a new gem only for the account the workflow names.
 
 ## Cutting a release
 

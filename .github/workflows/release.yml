@@ -221,7 +221,38 @@ jobs:
             gem exec sigstore-cli:0.2.3 sign "$gem" --bundle "$gem.sigstore.json"
           done
 
-      - uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      # RubyGems lets a trusted publisher create a gem only when the token
+      # exchange names the account that will own it, the one that holds the
+      # pending trusted publisher. rubygems/configure-rubygems-credentials
+      # cannot send that name, so this step makes the exchange itself.
+      - name: Get a RubyGems API key
+        env:
+          # The ID of that account, shown on its pending trusted publisher page.
+          RUBYGEMS_OWNER: ${{ vars.RUBYGEMS_OWNER }}
+        run: |
+          ruby -rjson -rnet/http -e '
+            owner = ENV.fetch("RUBYGEMS_OWNER")
+            abort "set the RUBYGEMS_OWNER variable on the release environment" if owner.empty?
+
+            id_token = JSON.parse(
+              Net::HTTP.get(
+                URI("#{ENV.fetch("ACTIONS_ID_TOKEN_REQUEST_URL")}&audience=rubygems.org"),
+                {"Authorization" => "Bearer #{ENV.fetch("ACTIONS_ID_TOKEN_REQUEST_TOKEN")}"}
+              )
+            ).fetch("value")
+            puts "::add-mask::#{id_token}"
+
+            response = Net::HTTP.post(
+              URI("https://rubygems.org/api/v1/oidc/trusted_publisher/exchange_token"),
+              {jwt: id_token, owner: owner}.to_json,
+              {"Content-Type" => "application/json", "Accept" => "application/json"}
+            )
+            abort "RubyGems refused the token exchange: #{response.code} #{response.body}" unless response.is_a?(Net::HTTPSuccess)
+
+            api_key = JSON.parse(response.body).fetch("rubygems_api_key")
+            puts "::add-mask::#{api_key}"
+            File.write(ENV.fetch("GITHUB_ENV"), "GEM_HOST_API_KEY=#{api_key}\n", mode: "a")
+          '
 
       # A gem RubyGems already has is skipped, so a run that failed partway
       # can be run again to push the rest.
