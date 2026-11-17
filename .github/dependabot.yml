@@ -1,5 +1,5 @@
-# Each ecosystem waits one day after a release before proposing it, instead of
-# the three days Dependabot waits by default. Security updates are not delayed.
+# Each ecosystem waits seven days after a release before proposing it, instead
+# of the three days Dependabot waits by default. Security updates are not delayed.
 version: 2
 updates:
   - package-ecosystem: bundler
@@ -7,7 +7,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 1
+      default-days: 7
     groups:
       bundler-dependencies:
         patterns: ["*"]
@@ -17,7 +17,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 1
+      default-days: 7
     groups:
       cargo-dependencies:
         patterns: ["*"]
@@ -27,7 +27,7 @@ updates:
     schedule:
       interval: weekly
     cooldown:
-      default-days: 1
+      default-days: 7
     groups:
       github-actions:
         patterns: ["*"]

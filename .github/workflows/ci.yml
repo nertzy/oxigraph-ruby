@@ -20,6 +20,7 @@ concurrency:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,18 +42,12 @@ jobs:
       - uses: DavidAnson/markdownlint-cli2-action@696eb3f2509270d7b882d2aa68347bc676e7af34 # v25.0.0
         with:
           globs: "**/*.md"
-      - name: Install actionlint
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/actionlint"
-          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) \
-            1.7.12 "$RUNNER_TEMP/actionlint"
-          echo "$RUNNER_TEMP/actionlint" >> "$GITHUB_PATH"
-      - run: actionlint
+      - uses: jdx/jactionlint@72c00452809bcca05b8bc12acdcf15dd7a9c1c5e # v2.6.0
 
   test:
     name: Ruby ${{ matrix.ruby }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     # Windows runners default to PowerShell, which cannot run the scripts in bin/.
     defaults:
       run:
