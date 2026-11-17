@@ -2,6 +2,7 @@
 name = "oxigraph"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.87"
 authors = ["Grant Hutchins <gems@nertzy.com>"]
 license = "MIT"
 publish = false
@@ -11,6 +12,9 @@ crate-type = ["cdylib"]
 
 [dependencies]
 magnus = { version = "0.9" }
+# The in-memory store only: RocksDB is the default feature, and no HTTP client
+# feature is enabled, so nothing here can open a network connection.
+oxigraph = { version = "0.5.13", default-features = false }
 rb-sys = { version = "0.9", features = ["stable-api-compiled-fallback"] }
 
 [build-dependencies]
