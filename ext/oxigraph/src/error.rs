@@ -4,6 +4,8 @@ use magnus::{kwargs, prelude::*, Error, ExceptionClass, RModule, Ruby};
 use oxigraph::io::RdfSyntaxError;
 use spargebra::SparqlSyntaxError;
 
+use crate::prefix::first_undeclared;
+
 /// Builds an `Oxigraph::Error`, the base class that `lib/oxigraph/errors.rb`
 /// defines.
 pub fn error(ruby: &Ruby, cause: impl Display) -> Error {
@@ -39,9 +41,28 @@ pub fn parse_error(ruby: &Ruby, cause: &RdfSyntaxError) -> Error {
 /// went wrong. Upstream keeps the position private and begins its message with
 /// it, so it is read back from there. An error upstream reports without a
 /// position leaves both nil.
-pub fn query_syntax_error(ruby: &Ruby, cause: &SparqlSyntaxError) -> Error {
-    let message = cause.to_string();
-    let start = position_in(&message);
+///
+/// `text` is what upstream refused and `declared` the prefixes the caller
+/// passed. When the text uses a prefix nothing declared, the error names it
+/// and points at it. The parser stops just after such a name, so a name
+/// beyond where it stopped is not what it refused, and its own message stays.
+pub fn query_syntax_error(
+    ruby: &Ruby,
+    cause: &SparqlSyntaxError,
+    text: &str,
+    declared: &[String],
+) -> Error {
+    let mut message = cause.to_string();
+    let mut start = position_in(&message);
+    if let (Some(reached), Some(name)) = (start, first_undeclared(text, declared)) {
+        if (name.line, name.column) < reached {
+            message = format!(
+                "error at {}:{}: the prefix \"{}:\" is not declared",
+                name.line, name.column, name.prefix
+            );
+            start = Some((name.line, name.column));
+        }
+    }
     let position = kwargs!(
         "line" => start.map(|(line, _)| line),
         "column" => start.map(|(_, column)| column)

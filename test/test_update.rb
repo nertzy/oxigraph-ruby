@@ -74,4 +74,18 @@ class TestUpdate < Minitest::Test
 
     assert_equal [nil, nil], [error.line, error.column]
   end
+
+  def test_names_an_undeclared_prefix
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse("INSERT DATA { ex:a ex:p ex:b }") }
+
+    assert_equal 'error at 1:15: the prefix "ex:" is not declared', error.message
+    assert_equal [1, 15], [error.line, error.column]
+  end
+
+  def test_names_a_prefix_no_earlier_operation_declared
+    update = "PREFIX a: <http://example.com/> INSERT DATA { a:x a:p a:y } ; INSERT DATA { a:x a:p b:y }"
+    error = assert_raises(Oxigraph::QuerySyntaxError) { Oxigraph::Update.parse(update) }
+
+    assert_match(/the prefix "b:" is not declared\z/, error.message)
+  end
 end
