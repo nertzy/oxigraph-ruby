@@ -24,22 +24,15 @@ pub struct Query {
 
 impl Query {
     fn parse(ruby: &Ruby, arguments: &[Value]) -> Result<Obj<Self>, Error> {
-        let (text, parser, prefixes) = text_and_parser(ruby, arguments)?;
-        let query = Self::from_text(ruby, parser, &text, &prefixes)?;
+        let (text, parser) = text_and_parser(ruby, arguments)?;
+        let query = Self::from_text(ruby, parser, &text)?;
         Ok(frozen(ruby, query))
     }
 
-    /// `prefixes` names the prefixes `parser` was given, for the error a
-    /// refused text raises.
-    fn from_text(
-        ruby: &Ruby,
-        parser: SparqlParser,
-        text: &str,
-        prefixes: &[String],
-    ) -> Result<Self, Error> {
+    fn from_text(ruby: &Ruby, parser: SparqlParser, text: &str) -> Result<Self, Error> {
         let inner = parser
             .parse_query(text)
-            .map_err(|cause| query_syntax_error(ruby, &cause, text, prefixes))?;
+            .map_err(|cause| query_syntax_error(ruby, &cause))?;
         let service = pattern_has_service(pattern_of(&inner));
         Ok(Self { inner, service })
     }
@@ -84,10 +77,10 @@ pub struct Update {
 
 impl Update {
     fn parse(ruby: &Ruby, arguments: &[Value]) -> Result<Obj<Self>, Error> {
-        let (text, parser, prefixes) = text_and_parser(ruby, arguments)?;
+        let (text, parser) = text_and_parser(ruby, arguments)?;
         let inner = parser
             .parse_update(&text)
-            .map_err(|cause| query_syntax_error(ruby, &cause, &text, &prefixes))?;
+            .map_err(|cause| query_syntax_error(ruby, &cause))?;
         Ok(frozen(ruby, Self { inner }))
     }
 
@@ -103,12 +96,9 @@ impl Update {
 }
 
 /// Reads the arguments that `Query.parse` and `Update.parse` share: the text,
-/// then `base_iri:` and `prefixes:`. Returns the text, a parser that knows the
-/// base IRI and the prefixes, and the names of those prefixes.
-fn text_and_parser(
-    ruby: &Ruby,
-    arguments: &[Value],
-) -> Result<(String, SparqlParser, Vec<String>), Error> {
+/// then `base_iri:` and `prefixes:`. Returns the text and a parser that knows
+/// the base IRI and the prefixes.
+fn text_and_parser(ruby: &Ruby, arguments: &[Value]) -> Result<(String, SparqlParser), Error> {
     let arguments = scan_args::scan_args::<(String,), (), (), (), RHash, ()>(arguments)?;
     let keywords = scan_args::get_kwargs::<
         _,
@@ -119,7 +109,6 @@ fn text_and_parser(
     let (base_iri, prefixes) = keywords.optional;
 
     let mut parser = SparqlParser::new();
-    let mut names = Vec::new();
     if let Some(base_iri) = base_iri.flatten() {
         parser = parser
             .with_base_iri(base_iri)
@@ -136,13 +125,12 @@ fn text_and_parser(
             Ok(ForEach::Continue)
         })?;
         for (name, iri) in declared {
-            names.push(name.clone());
             parser = parser
                 .with_prefix(name, iri)
                 .map_err(|cause| argument_error(ruby, cause))?;
         }
     }
-    Ok((arguments.required.0, parser, names))
+    Ok((arguments.required.0, parser))
 }
 
 fn pattern_of(query: &spargebra::Query) -> &GraphPattern {
@@ -263,7 +251,7 @@ pub fn evaluate(ruby: &Ruby, store: &Store, query: Value) -> Result<Value, Error
                     ),
                 ));
             };
-            parsed = Query::from_text(ruby, SparqlParser::new(), &text.to_string()?, &[])?;
+            parsed = Query::from_text(ruby, SparqlParser::new(), &text.to_string()?)?;
             &parsed
         }
     };
